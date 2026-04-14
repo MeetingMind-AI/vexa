@@ -64,7 +64,8 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_SSL_MODE=${DB_SSL_MODE:-disable}
       - DOCKER_HOST=unix://var/run/docker.sock
-      - DEVICE_TYPE=remote
+      - DEVICE_TYPE=cpu
+      - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-small}
       - WHISPER_LIVE_URL=ws://whisperlive:9090/ws
       - ADMIN_TOKEN=${ADMIN_API_TOKEN}
       - ZOOM_CLIENT_ID=${ZOOM_CLIENT_ID}
@@ -131,14 +132,16 @@ services:
       - WL_RECORDING_UPLOAD_URL=${WL_RECORDING_UPLOAD_URL:-http://bot-manager:8080/internal/recordings/upload}
       - SAME_OUTPUT_THRESHOLD=${SAME_OUTPUT_THRESHOLD:-3}
       - SAME_OUTPUT_THRESHOLD_TIER2=${SAME_OUTPUT_THRESHOLD_TIER2:-2}
-      - DEVICE_TYPE=remote
+      - DEVICE_TYPE=cpu
       - REMOTE_TRANSCRIBER_URL=${REMOTE_TRANSCRIBER_URL}
       - REMOTE_TRANSCRIBER_API_KEY=${REMOTE_TRANSCRIBER_API_KEY}
       - CONSUL_ENABLE=false
       - WL_REDIS_DISCOVERY_ENABLED=false
+      - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-small} # <--- ADD THIS LINE
+      - MODEL_PATH=/root/.cache/whisper # <--- ADD THIS LINE
     command: >-
       --port 9090
-      --backend remote
+      --backend faster_whisper
       --min_audio_s ${MIN_AUDIO_S:-2.0}
       --min_audio_s_tier2 ${MIN_AUDIO_S_TIER2:-20.0}
       --min_time_between_requests_s ${MIN_TIME_BETWEEN_REQUESTS_S:-0.5}

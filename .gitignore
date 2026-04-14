@@ -85,7 +85,7 @@ celerybeat-schedule
 *.sage.py
 
 # Environments
-.env
+#.env
 .venv
 env/
 venv/
@@ -147,3 +147,5 @@ test_data/
 *.txt
 !**/requirements.txt
 manifest.csv
+
+.DS_Store
