@@ -299,7 +299,7 @@ test: check_docker
 		echo "API: http://localhost:8056/docs"; \
 		echo "Admin: http://localhost:8057/docs"; \
 	fi
-	@chmod +x testing/run_vexa_interaction.sh
+	#@chmod +x testing/run_vexa_interaction.sh
 	@if [ -f .env ]; then \
 		DEVICE_TYPE=$$(grep -E '^[[:space:]]*DEVICE_TYPE=' .env | cut -d= -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$$//'); \
 		WHISPER_MODEL=$$(grep -E '^[[:space:]]*WHISPER_MODEL_SIZE=' .env | cut -d= -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$$//'); \
