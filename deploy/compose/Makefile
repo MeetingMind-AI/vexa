@@ -1,7 +1,7 @@
 .PHONY: all all-build env build build-bot-image build-transcript-rendering up down ps logs test test-transcription init-db restore-db check_docker preflight publish promote-staging promote-latest help-tags setup-api-key
 
 # --- Paths ---
-ROOT := $(shell git rev-parse --show-toplevel)
+ROOT := $(shell pwd)/../..
 COMPOSE_FILE := $(ROOT)/deploy/compose/docker-compose.yml
 ENV_FILE := $(ROOT)/.env
 ENV_EXAMPLE := $(ROOT)/deploy/env-example
@@ -11,7 +11,7 @@ LAST_TAG_FILE := $(ROOT)/deploy/compose/.last-tag
 # --- Image tagging ---
 # BUILD_TAG: always a fresh timestamp for `make build`. Never from .env.
 # IMAGE_TAG: what `make up` runs. Comes from .env (default: dev) or .last-tag after build.
-VERSION := $(shell cat $(ROOT)/VERSION 2>/dev/null || echo "0.0.0")
+VERSION := $(shell cat "$(ROOT)/VERSION" 2>/dev/null || echo "0.0.0")
 BUILD_TAG := $(VERSION)-$(shell date +%y%m%d-%H%M)
 
 # DockerHub namespace
@@ -21,9 +21,9 @@ DOCKERHUB_USER ?= vexaai
 IMAGES := api-gateway admin-api runtime-api meeting-api agent-api mcp dashboard tts-service vexa-lite
 BOT_IMAGE := vexa-bot
 
--include $(ENV_FILE)
+-include "$(ENV_FILE)"
 
-COMPOSE_CMD = docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
+COMPOSE_CMD = docker compose --env-file "$(ENV_FILE)" -f "$(COMPOSE_FILE)"
 
 # ============================================================================
 # Main targets
@@ -59,46 +59,46 @@ help-tags:
 
 # --- Environment ---
 env:
-	@if [ ! -f $(ENV_FILE) ]; then \
-		cp $(ENV_EXAMPLE) $(ENV_FILE); \
-		echo "Created .env from env-example. Edit $(ENV_FILE) before running."; \
+	@if [ ! -f "$(ENV_FILE)" ]; then \
+		cp "$(ENV_EXAMPLE)" "$(ENV_FILE)"; \
+		echo "Created .env from env-example. Edit "$(ENV_FILE)" before running."; \
 		echo "  - Set TRANSCRIPTION_SERVICE_URL to your transcription endpoint"; \
 		echo "  - Set TRANSCRIPTION_SERVICE_TOKEN"; \
 	else \
 		added=0; \
 		while IFS= read -r line; do \
 			key=$$(echo "$$line" | sed -n 's/^#*[[:space:]]*\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p'); \
-			if [ -n "$$key" ] && ! grep -qE "^#*\s*$$key=" $(ENV_FILE); then \
-				echo "$$line" >> $(ENV_FILE); \
+			if [ -n "$$key" ] && ! grep -qE "^#*\s*$$key=" "$(ENV_FILE)"; then \
+				echo "$$line" >> "$(ENV_FILE)"; \
 				added=$$((added+1)); \
 			fi; \
-		done < $(ENV_EXAMPLE); \
+		done < "$(ENV_EXAMPLE)"; \
 		if [ $$added -gt 0 ]; then \
 			echo ".env patched: $$added new variable(s) added from env-example."; \
 		else \
 			echo ".env is up to date."; \
 		fi; \
 	fi
-	@if ! grep -qE '^DOCKER_GID=' $(ENV_FILE) 2>/dev/null; then \
+	@if ! grep -qE '^DOCKER_GID=' "$(ENV_FILE)" 2>/dev/null; then \
 		GID=$$(getent group docker 2>/dev/null | cut -d: -f3); \
 		if [ -n "$$GID" ]; then \
-			echo "DOCKER_GID=$$GID" >> $(ENV_FILE); \
+			echo "DOCKER_GID=$$GID" >> "$(ENV_FILE)"; \
 			echo "Auto-detected DOCKER_GID=$$GID (written to .env)"; \
 		fi; \
 	fi
 	@BRANCH=$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main"); \
 	if [ "$$BRANCH" = "main" ]; then TAG=latest; else TAG=dev; fi; \
-	CURRENT=$$(grep -E '^IMAGE_TAG=' $(ENV_FILE) 2>/dev/null | cut -d= -f2); \
+	CURRENT=$$(grep -E '^IMAGE_TAG=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2); \
 	if [ "$$CURRENT" != "$$TAG" ]; then \
-		sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=$$TAG|" $(ENV_FILE); \
-		sed -i "s|^BROWSER_IMAGE=.*|BROWSER_IMAGE=vexaai/vexa-bot:$$TAG|" $(ENV_FILE); \
+		sed -i "" "s|^IMAGE_TAG=.*|IMAGE_TAG=$$TAG|" "$(ENV_FILE)"; \
+		sed -i "" "s|^BROWSER_IMAGE=.*|BROWSER_IMAGE=vexaai/vexa-bot:$$TAG|" "$(ENV_FILE)"; \
 		echo "Auto-set IMAGE_TAG=$$TAG (branch=$$BRANCH)"; \
 	fi
 
 # --- Preflight — validate credentials before starting anything ---
 preflight:
-	@TX_URL=$$(grep -E '^TRANSCRIPTION_SERVICE_URL=' $(ENV_FILE) 2>/dev/null | cut -d= -f2); \
-	TX_TOKEN=$$(grep -E '^TRANSCRIPTION_SERVICE_TOKEN=' $(ENV_FILE) 2>/dev/null | cut -d= -f2); \
+	@TX_URL=$$(grep -E '^TRANSCRIPTION_SERVICE_URL=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2); \
+	TX_TOKEN=$$(grep -E '^TRANSCRIPTION_SERVICE_TOKEN=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2); \
 	if [ -z "$$TX_TOKEN" ] || [ "$$TX_TOKEN" = "your-token" ]; then \
 		echo ""; \
 		echo "  Vexa uses transcription.vexa.ai to process meeting audio."; \
@@ -115,7 +115,7 @@ preflight:
 		if [ -z "$$TX_TOKEN" ]; then \
 			echo "  ✗ No token provided. Run 'make all' again when you have one."; exit 1; \
 		fi; \
-		sed -i "s|^TRANSCRIPTION_SERVICE_TOKEN=.*|TRANSCRIPTION_SERVICE_TOKEN=$$TX_TOKEN|" $(ENV_FILE); \
+		sed -i "" "s|^TRANSCRIPTION_SERVICE_TOKEN=.*|TRANSCRIPTION_SERVICE_TOKEN=$$TX_TOKEN|" "$(ENV_FILE)"; \
 		echo "  ✓ Token saved to .env"; \
 	fi; \
 	if [ -z "$$TX_URL" ]; then \
@@ -163,7 +163,7 @@ build-lite: check_docker
 
 build-transcript-rendering:
 	@echo "Building transcript-rendering package..."
-	@cd $(ROOT)/packages/transcript-rendering && npm install && npm run build
+	@cd "$(ROOT)"/packages/transcript-rendering && npm install && npm run build
 
 build: check_docker build-bot-image build-transcript-rendering build-lite
 	@echo "Building all images with tag: $(BUILD_TAG)"
@@ -181,11 +181,11 @@ build: check_docker build-bot-image build-transcript-rendering build-lite
 # IMAGE_TAG comes from .env (default: dev = pre-built from DockerHub).
 # `make build` writes a local tag to .last-tag which overrides .env.
 up: check_docker preflight
-	@if [ -f $(LAST_TAG_FILE) ]; then \
+	@if [ -f "$(LAST_TAG_FILE)" ]; then \
 		export IMAGE_TAG=$$(cat $(LAST_TAG_FILE)); \
 		echo "Using locally-built images (IMAGE_TAG=$$IMAGE_TAG from .last-tag)"; \
 	else \
-		export IMAGE_TAG=$$(grep -E '^IMAGE_TAG=' $(ENV_FILE) 2>/dev/null | cut -d= -f2 || echo "dev"); \
+		export IMAGE_TAG=$$(grep -E '^IMAGE_TAG=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2 || echo "dev"); \
 		echo "Using images (IMAGE_TAG=$$IMAGE_TAG from .env)"; \
 	fi; \
 	if ! docker network ls | grep -q "vexa-network"; then \
@@ -198,14 +198,14 @@ up: check_docker preflight
 		echo "Pulling bot image: $$BOT_IMG..."; \
 		docker pull $$BOT_IMG; \
 	fi; \
-	if grep -qE '^LOCAL_TRANSCRIPTION=true' $(ENV_FILE) 2>/dev/null; then \
+	if grep -qE '^LOCAL_TRANSCRIPTION=true' "$(ENV_FILE)" 2>/dev/null; then \
 		echo "LOCAL_TRANSCRIPTION=true — starting transcription-service..."; \
-		cd $(ROOT)/services/transcription-service && docker compose up -d; \
+		cd "$(ROOT)"/services/transcription-service && docker compose up -d; \
 	fi
 
 down: check_docker
 	$(COMPOSE_CMD) down
-	@cd $(ROOT)/services/transcription-service && docker compose down 2>/dev/null || true
+	@cd "$(ROOT)"/services/transcription-service && docker compose down 2>/dev/null || true
 
 # --- Service API key (dashboard WS auth) ---
 # Creates a default user (if needed) and a bot+browser+tx API key, writes VEXA_API_KEY to .env.
@@ -218,9 +218,9 @@ setup-api-key: check_docker
 	@# Now: if a key is present we PROBE the gateway with it; on 200 keep,
 	@# on anything else drop+regenerate so dashboard is always seeded with
 	@# a token the gateway accepts.
-	@API_PORT=$$(grep -E '^API_GATEWAY_HOST_PORT=' $(ENV_FILE) 2>/dev/null | cut -d= -f2); \
+	@API_PORT=$$(grep -E '^API_GATEWAY_HOST_PORT=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2); \
 	API_PORT=$${API_PORT:-8056}; \
-	EXISTING_KEY=$$(grep -E '^VEXA_API_KEY=' $(ENV_FILE) 2>/dev/null | cut -d= -f2); \
+	EXISTING_KEY=$$(grep -E '^VEXA_API_KEY=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2); \
 	if [ -n "$$EXISTING_KEY" ]; then \
 		HTTP=$$(curl -s -o /dev/null -w '%{http_code}' \
 			-H "X-API-Key: $$EXISTING_KEY" \
@@ -230,9 +230,9 @@ setup-api-key: check_docker
 			exit 0; \
 		fi; \
 		echo "VEXA_API_KEY in .env is stale (gateway returned HTTP $$HTTP) — regenerating."; \
-		sed -i.bak '/^VEXA_API_KEY=/d' $(ENV_FILE) && rm -f $(ENV_FILE).bak; \
+		sed -i.bak '/^VEXA_API_KEY=/d' "$(ENV_FILE)" && rm -f "$(ENV_FILE)".bak; \
 	fi; \
-	ADMIN_TK=$$(grep -E '^ADMIN_TOKEN=' $(ENV_FILE) 2>/dev/null | cut -d= -f2); \
+	ADMIN_TK=$$(grep -E '^ADMIN_TOKEN=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2); \
 	ADMIN_TK=$${ADMIN_TK:-changeme}; \
 	USER_ID=$$(curl -sf "http://localhost:$$API_PORT/admin/users?limit=1" \
 		-H "X-Admin-API-Key: $$ADMIN_TK" 2>/dev/null \
@@ -251,9 +251,9 @@ setup-api-key: check_docker
 			-H "X-Admin-API-Key: $$ADMIN_TK" 2>/dev/null \
 			| python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))" 2>/dev/null); \
 		if [ -n "$$TOKEN" ]; then \
-			echo "VEXA_API_KEY=$$TOKEN" >> $(ENV_FILE); \
+			echo "VEXA_API_KEY=$$TOKEN" >> "$(ENV_FILE)"; \
 			echo "Created VEXA_API_KEY for user $$USER_ID (dashboard WS auth)."; \
-			if [ -f $(LAST_TAG_FILE) ]; then \
+			if [ -f "$(LAST_TAG_FILE)" ]; then \
 				export IMAGE_TAG=$$(cat $(LAST_TAG_FILE)); \
 			else \
 				export IMAGE_TAG=dev; \
@@ -274,16 +274,16 @@ logs:
 # --- Test ---
 test: check_docker
 	@echo "Waiting for services to be ready..."
-	@DASH_PORT=$$(grep -E '^DASHBOARD_HOST_PORT=' $(ENV_FILE) 2>/dev/null | cut -d= -f2 || echo "3001"); \
+	@DASH_PORT=$$(grep -E '^DASHBOARD_HOST_PORT=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2 || echo "3001"); \
 	DASH_PORT=$${DASH_PORT:-3001}; \
 	for i in 1 2 3 4 5; do \
 		curl -sf "http://localhost:$$DASH_PORT/" > /dev/null 2>&1 && break; \
 		sleep 2; \
 	done
 	@echo "Checking services..."
-	@API_PORT=$$(grep -E '^API_GATEWAY_HOST_PORT=' $(ENV_FILE) 2>/dev/null | cut -d= -f2 || echo "8056"); \
-	ADMIN_PORT=$$(grep -E '^ADMIN_API_PORT=' $(ENV_FILE) 2>/dev/null | cut -d= -f2 || echo "8057"); \
-	DASH_PORT=$$(grep -E '^DASHBOARD_HOST_PORT=' $(ENV_FILE) 2>/dev/null | cut -d= -f2 || echo "3001"); \
+	@API_PORT=$$(grep -E '^API_GATEWAY_HOST_PORT=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2 || echo "8056"); \
+	ADMIN_PORT=$$(grep -E '^ADMIN_API_PORT=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2 || echo "8057"); \
+	DASH_PORT=$$(grep -E '^DASHBOARD_HOST_PORT=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2 || echo "3001"); \
 	API_PORT=$${API_PORT:-8056}; ADMIN_PORT=$${ADMIN_PORT:-8057}; DASH_PORT=$${DASH_PORT:-3001}; \
 	if curl -sf "http://localhost:$$API_PORT/" > /dev/null 2>&1; then \
 		echo "  ✓ API Gateway (port $$API_PORT)"; \
@@ -322,8 +322,8 @@ test: check_docker
 TEST_AUDIO := $(ROOT)/tests3/testdata/test-speech-en.wav
 
 test-transcription:
-	@TX_URL=$$(grep -E '^TRANSCRIPTION_SERVICE_URL=' $(ENV_FILE) 2>/dev/null | cut -d= -f2); \
-	TX_TOKEN=$$(grep -E '^TRANSCRIPTION_SERVICE_TOKEN=' $(ENV_FILE) 2>/dev/null | cut -d= -f2); \
+	@TX_URL=$$(grep -E '^TRANSCRIPTION_SERVICE_URL=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2); \
+	TX_TOKEN=$$(grep -E '^TRANSCRIPTION_SERVICE_TOKEN=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2); \
 	if [ -z "$$TX_URL" ]; then \
 		echo "  ✗ Transcription: TRANSCRIPTION_SERVICE_URL not set in .env"; \
 		exit 1; \
@@ -332,15 +332,16 @@ test-transcription:
 		echo "  ✗ Transcription: test audio file not found at $(TEST_AUDIO)"; \
 		exit 1; \
 	fi; \
-	echo "Testing transcription at $$TX_URL ..."; \
-	RESP=$$(curl -s -X POST "$$TX_URL" \
+	URL_HOST=$$(echo "$$TX_URL" | sed 's/host.docker.internal/localhost/'); \
+	echo "Testing transcription at $$URL_HOST ..."; \
+	RESP=$$(curl -s -X POST "$$URL_HOST" \
 		-H "Authorization: Bearer $$TX_TOKEN" \
 		-F "file=@$(TEST_AUDIO)" \
 		-F "language=en" \
 		-F "model=large-v3-turbo" \
 		-w "\n%{http_code}" 2>&1); \
 	HTTP=$$(echo "$$RESP" | tail -1); \
-	BODY=$$(echo "$$RESP" | head -n -1); \
+	BODY=$$(echo "$$RESP" | sed '$$d'); \
 	if [ "$$HTTP" = "200" ]; then \
 		TEXT=$$(echo "$$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('text','')[:80])" 2>/dev/null); \
 		if [ -n "$$TEXT" ]; then \
@@ -384,7 +385,7 @@ publish: check_docker
 promote-staging: check_docker
 	@TAG_TO_USE="$(TAG)"; \
 	if [ -z "$$TAG_TO_USE" ]; then \
-		if [ -f $(LAST_TAG_FILE) ]; then \
+		if [ -f "$(LAST_TAG_FILE)" ]; then \
 			TAG_TO_USE=$$(cat $(LAST_TAG_FILE)); \
 		else \
 			echo "ERROR: No TAG specified and .last-tag not found."; exit 1; \
@@ -403,7 +404,7 @@ promote-staging: check_docker
 promote-latest: check_docker
 	@TAG_TO_USE="$(TAG)"; \
 	if [ -z "$$TAG_TO_USE" ]; then \
-		if [ -f $(LAST_TAG_FILE) ]; then \
+		if [ -f "$(LAST_TAG_FILE)" ]; then \
 			TAG_TO_USE=$$(cat $(LAST_TAG_FILE)); \
 		else \
 			echo "ERROR: No TAG specified and .last-tag not found."; exit 1; \
@@ -429,8 +430,8 @@ init-db: check_docker
 			echo "ERROR: postgres not running. Run 'make up' first."; exit 1; \
 		fi; \
 		count=0; \
-		DB_USER=$$(grep -E '^DB_USER=' $(ENV_FILE) 2>/dev/null | cut -d= -f2 || echo "postgres"); \
-		DB_NAME=$$(grep -E '^DB_NAME=' $(ENV_FILE) 2>/dev/null | cut -d= -f2 || echo "vexa"); \
+		DB_USER=$$(grep -E '^DB_USER=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2 || echo "postgres"); \
+		DB_NAME=$$(grep -E '^DB_NAME=' "$(ENV_FILE)" 2>/dev/null | cut -d= -f2 || echo "vexa"); \
 		DB_USER=$${DB_USER:-postgres}; DB_NAME=$${DB_NAME:-vexa}; \
 		while ! $(COMPOSE_CMD) exec -T postgres pg_isready -U $$DB_USER -d $$DB_NAME -q; do \
 			if [ $$count -ge 12 ]; then echo "ERROR: DB not ready in 60s."; exit 1; fi; \
