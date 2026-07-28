@@ -13,7 +13,7 @@ services:
     depends_on:
       - transcription-worker-1
     restart: unless-stopped
-    networks: [transcription-net]
+    networks: [vexa_net]
 
   transcription-worker-1:
     build:
@@ -29,15 +29,16 @@ services:
       - DEVICE=cpu
       - COMPUTE_TYPE=int8
       - CPU_THREADS=${CPU_THREADS:-0}
-      - API_TOKEN=${API_TOKEN:-}
+      - API_TOKEN=${API_TOKEN:-local}
     volumes:
       - transcription-models:/app/models
     restart: unless-stopped
-    networks: [transcription-net]
+    networks: [vexa_net]
 
 networks:
-  transcription-net:
-    driver: bridge
+  vexa_net:
+    external: true
+    name: vexa-v012_vexa
 
 volumes:
   transcription-models:
